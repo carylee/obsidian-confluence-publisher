@@ -18,7 +18,7 @@ import {
 	ConfluencePerPageUIValues,
 	mapFrontmatterToConfluencePerPageUIValues,
 } from "./ConfluencePerPageForm";
-import { Mermaid } from "mermaid";
+import mermaid from "mermaid";
 
 export interface ObsidianPluginSettings
 	extends ConfluenceUploadSettings.ConfluenceSettings {
@@ -162,12 +162,15 @@ export default class ConfluencePlugin extends Plugin {
 			}
 		}
 
+		const isDarkMode = document.body.classList.contains('theme-dark');
+
 		return {
 			extraStyleSheets,
 			extraStyles,
-			mermaidConfig: (
-				(await loadMermaid()) as Mermaid
-			).mermaidAPI.getConfig(),
+			mermaidConfig: {
+				...((await loadMermaid()) as typeof mermaid).mermaidAPI.getConfig(),
+				theme: isDarkMode ? 'dark' : 'default',
+			},
 			bodyStyles,
 		};
 	}
@@ -433,9 +436,13 @@ export default class ConfluencePlugin extends Plugin {
 		this.addCommand({
 			id: "page-settings",
 			name: "Update Confluence Page Settings",
-			editorCallback: (_editor, view) => {
+			editorCheckCallback: (checking, _editor, view) => {
 				if (!view.file) {
 					return false;
+				}
+
+				if (checking) {
+					return true;
 				}
 
 				const frontMatter = this.app.metadataCache.getCache(

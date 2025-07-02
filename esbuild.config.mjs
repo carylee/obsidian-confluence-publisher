@@ -40,16 +40,20 @@ const buildConfig = {
 	logLevel: "info",
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
-	outdir: prod ? 'dist' : '../../dev-vault/.obsidian/plugins/obsidian-confluence',
+	outdir: prod ? 'dist' : '/Users/cary/Documents/Loom/loom/.obsidian/plugins/obsidian-confluence-publisher',
 	mainFields: ['module', 'main'],
 	minify: true,
 	metafile: true,
 };
 
 if (prod) {
+	buildConfig.minify = true;
 	const buildResult = await esbuild.build(buildConfig);
 	writeFileSync("./dist/meta.json", JSON.stringify(buildResult.metafile));
+	console.log("✅ Production build completed!");
 } else {
+	buildConfig.minify = false;
 	const context = await esbuild.context(buildConfig);
 	await context.watch();
+	console.log("👀 Watching for changes...");
 }

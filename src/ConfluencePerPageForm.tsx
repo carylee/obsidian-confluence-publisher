@@ -97,7 +97,6 @@ const handleChange = (
 
 const styles = {
 	errorTd: {
-		columnSpan: "all" as Property.ColumnSpan,
 		color: "red",
 	},
 };

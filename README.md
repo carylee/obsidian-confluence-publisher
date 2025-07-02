@@ -15,6 +15,57 @@ Copyright (c) 2022 Atlassian US, Inc.
 - CLI for pushing markdown files from disk
 - Commands and ribbon icon for easy access
 
+## Development Setup
+
+This repository is a standalone version of the Obsidian Confluence plugin, extracted from the original monorepo.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v16 or newer recommended)
+- [pnpm](https://pnpm.io/) (v8 or newer recommended)
+
+### Installation
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/your-username/obsidian-confluence-publisher.git
+   cd obsidian-confluence-publisher
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+3. Build for development (with file watching):
+   ```bash
+   pnpm run dev
+   ```
+
+   This will build the plugin to your Obsidian plugins directory (configured in `esbuild.config.mjs`).
+
+4. For production build:
+   ```bash
+   pnpm run build
+   ```
+   
+   This creates a `dist` folder with the production build.
+
+5. Type checking (optional):
+   ```bash
+   pnpm run typecheck
+   ```
+   
+   This runs TypeScript's type checker without emitting any files. Useful to verify types while developing.
+
+### Installing in Obsidian
+
+Before building, update the `outdir` in `esbuild.config.mjs` to point to your Obsidian vault's plugin directory:
+
+```javascript
+outdir: prod ? 'dist' : '/path/to/your/vault/.obsidian/plugins/obsidian-confluence-publisher',
+```
+
 ## Issues
 Please log issues to https://github.com/markdown-confluence/markdown-confluence/issues as this is where the code is being developed. 
 
