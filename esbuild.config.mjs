@@ -1,7 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from 'builtin-modules'
-import { writeFileSync } from 'fs';
+import { writeFileSync, copyFileSync } from 'fs';
 
 
 const banner =
@@ -50,6 +50,9 @@ if (prod) {
 	buildConfig.minify = true;
 	const buildResult = await esbuild.build(buildConfig);
 	writeFileSync("./dist/meta.json", JSON.stringify(buildResult.metafile));
+	
+	// Copy manifest.json to dist folder
+	copyFileSync("./manifest.json", "./dist/manifest.json");
 	console.log("✅ Production build completed!");
 } else {
 	buildConfig.minify = false;
