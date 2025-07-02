@@ -204,7 +204,10 @@ export default class ConfluencePlugin extends Plugin {
 	override async onload() {
 		await this.init();
 
-		this.addRibbonIcon("cloud", "Publish to Confluence", async () => {
+		this.addRibbonIcon("cloud", "Publish to Confluence", async (evt: MouseEvent) => {
+			// Stop event propagation to prevent triggering other actions in Obsidian
+			evt.stopPropagation();
+			evt.preventDefault();
 			if (this.isSyncing) {
 				new Notice("Syncing already on going");
 				return;
