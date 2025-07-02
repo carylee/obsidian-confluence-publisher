@@ -1,7 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from 'builtin-modules'
-import { writeFileSync, copyFileSync } from 'fs';
+import { writeFileSync, copyFileSync, readFileSync } from 'fs';
 
 
 const banner =
@@ -51,8 +51,20 @@ if (prod) {
 	const buildResult = await esbuild.build(buildConfig);
 	writeFileSync("./dist/meta.json", JSON.stringify(buildResult.metafile));
 	
-	// Copy manifest.json to dist folder
-	copyFileSync("./manifest.json", "./dist/manifest.json");
+	// Generate manifest.json from package.json
+	const pkg = JSON.parse(readFileSync('./package.json', 'utf8'));
+	const manifest = {
+		id: "confluence-integration",
+		name: "Confluence Integration",
+		version: pkg.version,
+		minAppVersion: "1.0.0",
+		description: pkg.description,
+		author: pkg.author,
+		authorUrl: "https://github.com/andymac4182",
+		isDesktopOnly: true
+	};
+	
+	writeFileSync("./dist/manifest.json", JSON.stringify(manifest, null, '\t'));
 	console.log("✅ Production build completed!");
 } else {
 	buildConfig.minify = false;
