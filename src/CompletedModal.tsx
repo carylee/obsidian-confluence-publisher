@@ -110,7 +110,11 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 						</tbody>
 					</table>
 					<div className="expandable-section">
-						<button onClick={() => setExpanded(!expanded)}>
+						<button onClick={(evt) => {
+							// Stop event propagation to prevent triggering Obsidian UI actions
+							evt.stopPropagation();
+							setExpanded(!expanded);
+						}}>
 							{expanded ? "Collapse" : "Expand"} Updated Files
 						</button>
 						{expanded && (
@@ -146,6 +150,13 @@ export class CompletedModal extends Modal {
 
 	override onOpen() {
 		const { contentEl } = this;
+		
+		// Add a click handler to the modal container to stop event propagation
+		contentEl.addEventListener('click', (evt) => {
+			evt.stopPropagation();
+			// Don't use preventDefault here as it would break functionality of buttons and links
+		});
+		
 		ReactDOM.render(
 			React.createElement(CompletedView, this.uploadResults),
 			contentEl,
