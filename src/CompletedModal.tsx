@@ -46,6 +46,12 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 			));
 	};
 
+	// Debug state changes
+	console.log("Initial expanded state:", expanded);
+	React.useEffect(() => {
+		console.log("Expanded state changed to:", expanded);
+	}, [expanded]);
+
 	// Add CSS for styling
 	const styles = {
 		container: {
@@ -211,17 +217,34 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 					{(countResults.content.updated > 0 || countResults.images.updated > 0 || countResults.labels.updated > 0) && (
 						<div>
 							<button 
-								style={styles.expandButton}
+								style={{
+									...styles.expandButton,
+									':hover': {
+										backgroundColor: 'var(--interactive-hover)'
+									},
+									':active': {
+										backgroundColor: 'var(--interactive-accent)'
+									},
+									outline: 'none',
+								}}
 								onClick={(evt) => {
 									// Stop event propagation to prevent triggering Obsidian UI actions
 									evt.stopPropagation();
+									evt.preventDefault();
 									setExpanded(!expanded);
+									console.log("Button clicked, expanded state:", !expanded);
 								}}>
 								{expanded ? "Hide" : "Show"} Updated Files
 							</button>
 							
-							{expanded && (
-								<div>
+							{expanded ? (
+								<div style={{
+									backgroundColor: 'var(--background-primary-alt)',
+									padding: '12px',
+									borderRadius: '4px',
+									marginTop: '12px',
+									border: '1px solid var(--background-modifier-border)'
+								}}>
 									{countResults.content.updated > 0 && (
 										<div>
 											<h4 style={styles.sectionTitle}>Updated Content</h4>
@@ -243,7 +266,7 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 										</div>
 									)}
 								</div>
-							)}
+							) : null}
 						</div>
 					)}
 				</>
