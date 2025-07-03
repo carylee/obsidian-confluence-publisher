@@ -94,11 +94,7 @@ const handleChange = (
 	}));
 };
 
-const styles = {
-	errorTd: {
-		color: "red",
-	},
-};
+// Styles are now defined in styles.css
 
 /**
  * Generic form field component that handles rendering different input types
@@ -254,7 +250,7 @@ const FormField = ({
 		if ((errors[fieldKey]?.length ?? 0) > 0) {
 			return (
 				<td colSpan={3}>
-					<div className="error" style={styles.errorTd}>
+					<div className="error">
 						{(errors[fieldKey] ?? []).map((error) => (
 							<p key={error.message}>{error.message}</p>
 						))}
@@ -305,14 +301,14 @@ const ConfluenceForm: React.FC<FormProps> = ({
 	};
 
 	return (
-		<form onSubmit={handleSubmit}>
+		<form onSubmit={handleSubmit} className="confluence-page-form">
 			<h1>Update Confluence Page Settings</h1>
 			<table>
 				<thead>
 					<tr>
-						<td>YAML Key</td>
-						<td>Value</td>
-						<td>Update</td>
+						<th>YAML Key</th>
+						<th>Value</th>
+						<th>Update</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -329,7 +325,7 @@ const ConfluenceForm: React.FC<FormProps> = ({
 					))}
 				</tbody>
 			</table>
-			<button type="submit">Submit</button>
+			<button type="submit" className="mod-cta">Submit</button>
 		</form>
 	);
 };

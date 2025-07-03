@@ -19,6 +19,7 @@ import {
 	mapFrontmatterToConfluencePerPageUIValues,
 } from "./ConfluencePerPageForm";
 import mermaid from "mermaid";
+import "../styles.css";
 
 export interface ObsidianPluginSettings
 	extends ConfluenceUploadSettings.ConfluenceSettings {

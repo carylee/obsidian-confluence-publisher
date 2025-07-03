@@ -46,126 +46,38 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 			));
 	};
 
-	// Debug state changes
-	console.log("Initial expanded state:", expanded);
+	// Remove debug logging for production
 	React.useEffect(() => {
-		console.log("Expanded state changed to:", expanded);
+		// Effect to handle any component setup if needed in the future
 	}, [expanded]);
 
-	// Add CSS for styling
-	const styles = {
-		container: {
-			padding: '16px',
-			maxWidth: '480px',
-			color: 'var(--text-normal)',
-			fontFamily: 'var(--font-interface)'
-		},
-		header: {
-			marginBottom: '16px',
-			borderBottom: '2px solid var(--background-modifier-border)',
-			paddingBottom: '8px'
-		},
-		title: {
-			margin: '0 0 8px 0',
-			fontSize: '1.5rem',
-			fontWeight: '600',
-			color: 'var(--text-accent)'
-		},
-		summaryBox: {
-			backgroundColor: 'var(--background-secondary)',
-			border: '1px solid var(--background-modifier-border)',
-			borderRadius: '4px',
-			padding: '12px 16px',
-			marginBottom: '16px'
-		},
-		summaryText: {
-			fontSize: '1rem',
-			fontWeight: '500',
-			margin: '0'
-		},
-		successText: {
-			color: 'var(--text-success)',
-			fontWeight: '600'
-		},
-		table: {
-			width: '100%',
-			borderCollapse: 'collapse' as 'collapse',
-			marginBottom: '16px',
-			fontSize: '0.9rem'
-		},
-		tableHeader: {
-			textAlign: 'left' as 'left',
-			padding: '8px',
-			backgroundColor: 'var(--background-modifier-hover)',
-			fontWeight: '600'
-		},
-		tableCell: {
-			padding: '8px',
-			borderTop: '1px solid var(--background-modifier-border)'
-		},
-		updatedCell: {
-			color: 'var(--text-accent)'
-		},
-		sameCell: {
-			color: 'var(--text-muted)'
-		},
-		zeroCell: {
-			color: 'var(--text-faint)'
-		},
-		expandButton: {
-			backgroundColor: 'var(--interactive-normal)',
-			color: 'var(--text-normal)',
-			border: 'none',
-			borderRadius: '4px',
-			padding: '6px 12px',
-			cursor: 'pointer',
-			fontSize: '0.9rem',
-			transition: 'background-color 150ms ease'
-		} as React.CSSProperties,
-		updatedList: {
-			marginTop: '12px',
-			padding: '0 0 0 16px'
-		},
-		sectionTitle: {
-			fontSize: '0.9rem',
-			fontWeight: '600',
-			margin: '16px 0 8px 0',
-			color: 'var(--text-normal)'
-		},
-		errorSection: {
-			backgroundColor: 'var(--background-modifier-error)',
-			color: 'var(--text-error)',
-			padding: '12px',
-			borderRadius: '4px',
-			marginBottom: '16px'
-		}
-	};
-
 	return (
-		<div style={styles.container}>
-			<div style={styles.header}>
-				<h1 style={styles.title}>Confluence Publish</h1>
+		<div className="confluence-publish-modal">
+			<div className="confluence-publish-modal-header">
+				<h1 className="confluence-publish-modal-title">Confluence Publish</h1>
 			</div>
 			{errorMessage ? (
-				<div style={styles.errorSection}>
-					<h3 style={styles.sectionTitle}>Error</h3>
+				<div className="confluence-publish-modal-error-section">
+					<h3 className="confluence-publish-modal-section-title">Error</h3>
 					<p>{errorMessage}</p>
 				</div>
 			) : (
 				<>
-					<div style={styles.summaryBox}>
-						<p style={styles.summaryText}>
-							<span style={styles.successText}>{filesUploadResult.length} file{filesUploadResult.length !== 1 ? 's' : ''}</span> uploaded successfully
+					<div className="confluence-publish-modal-summary-box">
+						<p className="confluence-publish-modal-summary-text">
+							<span className="confluence-publish-modal-success-text">
+								{filesUploadResult.length} file{filesUploadResult.length !== 1 ? 's' : ''}
+							</span> uploaded successfully
 						</p>
 					</div>
 
 					{failedFiles.length > 0 && (
-						<div style={styles.errorSection}>
-							<h3 style={styles.sectionTitle}>Failed Uploads</h3>
+						<div className="confluence-publish-modal-error-section">
+							<h3 className="confluence-publish-modal-section-title">Failed Uploads</h3>
 							<p>
 								{failedFiles.length} file{failedFiles.length !== 1 ? 's' : ''} failed to upload.
 							</p>
-							<ul style={styles.updatedList}>
+							<ul className="confluence-publish-modal-updated-list">
 								{failedFiles.map((file, index) => (
 									<li key={index}>
 										<strong>{file.fileName.split('/').pop()}</strong>: {file.reason}
@@ -175,39 +87,45 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 						</div>
 					)}
 
-					<table style={styles.table}>
+					<table className="confluence-publish-modal-table">
 						<thead>
 							<tr>
-								<th style={styles.tableHeader}>Type</th>
-								<th style={styles.tableHeader}>Same</th>
-								<th style={styles.tableHeader}>Updated</th>
+								<th className="confluence-publish-modal-table-header">Type</th>
+								<th className="confluence-publish-modal-table-header">Same</th>
+								<th className="confluence-publish-modal-table-header">Updated</th>
 							</tr>
 						</thead>
 						<tbody>
 							<tr>
-								<td style={styles.tableCell}>Content</td>
-								<td style={{...styles.tableCell, ...(countResults.content.same > 0 ? styles.sameCell : styles.zeroCell)}}>
+								<td className="confluence-publish-modal-table-cell">Content</td>
+								<td className={`confluence-publish-modal-table-cell ${countResults.content.same > 0 ? 
+									'confluence-publish-modal-cell-same' : 'confluence-publish-modal-cell-zero'}`}>
 									{countResults.content.same}
 								</td>
-								<td style={{...styles.tableCell, ...(countResults.content.updated > 0 ? styles.updatedCell : styles.zeroCell)}}>
+								<td className={`confluence-publish-modal-table-cell ${countResults.content.updated > 0 ? 
+									'confluence-publish-modal-cell-updated' : 'confluence-publish-modal-cell-zero'}`}>
 									{countResults.content.updated}
 								</td>
 							</tr>
 							<tr>
-								<td style={styles.tableCell}>Images</td>
-								<td style={{...styles.tableCell, ...(countResults.images.same > 0 ? styles.sameCell : styles.zeroCell)}}>
+								<td className="confluence-publish-modal-table-cell">Images</td>
+								<td className={`confluence-publish-modal-table-cell ${countResults.images.same > 0 ? 
+									'confluence-publish-modal-cell-same' : 'confluence-publish-modal-cell-zero'}`}>
 									{countResults.images.same}
 								</td>
-								<td style={{...styles.tableCell, ...(countResults.images.updated > 0 ? styles.updatedCell : styles.zeroCell)}}>
+								<td className={`confluence-publish-modal-table-cell ${countResults.images.updated > 0 ? 
+									'confluence-publish-modal-cell-updated' : 'confluence-publish-modal-cell-zero'}`}>
 									{countResults.images.updated}
 								</td>
 							</tr>
 							<tr>
-								<td style={styles.tableCell}>Labels</td>
-								<td style={{...styles.tableCell, ...(countResults.labels.same > 0 ? styles.sameCell : styles.zeroCell)}}>
+								<td className="confluence-publish-modal-table-cell">Labels</td>
+								<td className={`confluence-publish-modal-table-cell ${countResults.labels.same > 0 ? 
+									'confluence-publish-modal-cell-same' : 'confluence-publish-modal-cell-zero'}`}>
 									{countResults.labels.same}
 								</td>
-								<td style={{...styles.tableCell, ...(countResults.labels.updated > 0 ? styles.updatedCell : styles.zeroCell)}}>
+								<td className={`confluence-publish-modal-table-cell ${countResults.labels.updated > 0 ? 
+									'confluence-publish-modal-cell-updated' : 'confluence-publish-modal-cell-zero'}`}>
 									{countResults.labels.updated}
 								</td>
 							</tr>
@@ -217,47 +135,36 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 					{(countResults.content.updated > 0 || countResults.images.updated > 0 || countResults.labels.updated > 0) && (
 						<div>
 							<button 
-								style={{
-									...styles.expandButton,
-									// Pseudo-selectors won't work in inline styles, we'll address this in CSS refactor
-									outline: 'none',
-								} as React.CSSProperties}
+								className="confluence-publish-modal-expand-button"
 								onClick={(evt) => {
 									// Stop event propagation to prevent triggering Obsidian UI actions
 									evt.stopPropagation();
 									evt.preventDefault();
 									setExpanded(!expanded);
-									console.log("Button clicked, expanded state:", !expanded);
 								}}>
 								{expanded ? "Hide" : "Show"} Updated Files
 							</button>
 							
 							{expanded ? (
-								<div style={{
-									backgroundColor: 'var(--background-primary-alt)',
-									padding: '12px',
-									borderRadius: '4px',
-									marginTop: '12px',
-									border: '1px solid var(--background-modifier-border)'
-								}}>
+								<div className="confluence-publish-modal-files-container">
 									{countResults.content.updated > 0 && (
 										<div>
-											<h4 style={styles.sectionTitle}>Updated Content</h4>
-											<ul style={styles.updatedList}>{renderUpdatedFiles("content")}</ul>
+											<h4 className="confluence-publish-modal-section-title">Updated Content</h4>
+											<ul className="confluence-publish-modal-updated-list">{renderUpdatedFiles("content")}</ul>
 										</div>
 									)}
 									
 									{countResults.images.updated > 0 && (
 										<div>
-											<h4 style={styles.sectionTitle}>Updated Images</h4>
-											<ul style={styles.updatedList}>{renderUpdatedFiles("image")}</ul>
+											<h4 className="confluence-publish-modal-section-title">Updated Images</h4>
+											<ul className="confluence-publish-modal-updated-list">{renderUpdatedFiles("image")}</ul>
 										</div>
 									)}
 									
 									{countResults.labels.updated > 0 && (
 										<div>
-											<h4 style={styles.sectionTitle}>Updated Labels</h4>
-											<ul style={styles.updatedList}>{renderUpdatedFiles("label")}</ul>
+											<h4 className="confluence-publish-modal-section-title">Updated Labels</h4>
+											<ul className="confluence-publish-modal-updated-list">{renderUpdatedFiles("label")}</ul>
 										</div>
 									)}
 								</div>
