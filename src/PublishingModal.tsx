@@ -82,6 +82,7 @@ const PublishingView: React.FC<PublishingModalProps> = ({ status }) => {
 
 export class PublishingModal extends Modal {
     status: PublishingStatus;
+    private reactRoot: HTMLDivElement | null = null;
     
     constructor(app: App, initialStatus: PublishingStatus) {
         super(app);
@@ -89,14 +90,21 @@ export class PublishingModal extends Modal {
     }
     
     updateStatus(newStatus: Partial<PublishingStatus>) {
+        // Update status without calling onOpen again
         this.status = { ...this.status, ...newStatus };
-        // Re-render with new status
-        this.onOpen();
+        
+        // Re-render only if the component is already mounted
+        if (this.reactRoot) {
+            ReactDOM.render(
+                React.createElement(PublishingView, { status: this.status }),
+                this.reactRoot
+            );
+        }
     }
     
     override onOpen() {
         const { contentEl } = this;
-        // Clear content before re-rendering
+        // Clear content before creating new elements
         contentEl.empty();
         
         // Add event listeners to prevent event propagation
@@ -108,16 +116,26 @@ export class PublishingModal extends Modal {
             evt.stopPropagation();
         });
         
+        // Create a dedicated container for React
+        this.reactRoot = contentEl.createDiv();
+        
         // Render the component
         ReactDOM.render(
             React.createElement(PublishingView, { status: this.status }),
-            contentEl
+            this.reactRoot
         );
     }
     
     override onClose() {
         const { contentEl } = this;
-        ReactDOM.unmountComponentAtNode(contentEl);
+        
+        // Properly unmount React component if we have a root
+        if (this.reactRoot) {
+            ReactDOM.unmountComponentAtNode(this.reactRoot);
+            this.reactRoot = null;
+        }
+        
+        // Clear the content element
         contentEl.empty();
     }
 }

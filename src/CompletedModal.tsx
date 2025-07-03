@@ -180,6 +180,7 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 export class CompletedModal extends Modal {
 	uploadResults: UploadResultsProps;
 	customCloseHandler: () => void = () => {}; // Add customizable close handler
+	private reactRoot: HTMLDivElement | null = null;
 
 	constructor(app: App, uploadResults: UploadResultsProps) {
 		super(app);
@@ -193,6 +194,8 @@ export class CompletedModal extends Modal {
 
 	override onOpen() {
 		const { contentEl } = this;
+		// Clear content before creating new elements
+		contentEl.empty();
 		
 		// Add a click handler to the modal container to stop event propagation
 		contentEl.addEventListener('click', (evt) => {
@@ -206,15 +209,25 @@ export class CompletedModal extends Modal {
 			// Don't prevent default to allow basic keyboard functionality
 		});
 		
+		// Create a dedicated container for React
+		this.reactRoot = contentEl.createDiv();
+		
 		ReactDOM.render(
 			React.createElement(CompletedView, this.uploadResults),
-			contentEl,
+			this.reactRoot
 		);
 	}
 
 	override onClose() {
 		const { contentEl } = this;
-		ReactDOM.unmountComponentAtNode(contentEl);
+		
+		// Properly unmount React component if we have a root
+		if (this.reactRoot) {
+			ReactDOM.unmountComponentAtNode(this.reactRoot);
+			this.reactRoot = null;
+		}
+		
+		// Clear the content element
 		contentEl.empty();
 		
 		// Call the customizable close handler

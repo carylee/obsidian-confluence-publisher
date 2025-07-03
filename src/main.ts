@@ -56,7 +56,27 @@ export default class ConfluencePlugin extends Plugin {
 	 * Helper method to handle publish errors and display them in a modal
 	 */
 	private handlePublishError(error: unknown): void {
-		const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+		// Format the error message with better handling of different error types
+		let errorMessage: string;
+		
+		if (error instanceof Error) {
+			// For standard Error objects, include name and message
+			errorMessage = `${error.name}: ${error.message}`;
+			// Include stack trace in the console for debugging
+			console.error('Publishing error:', error);
+		} else if (typeof error === 'string') {
+			// Handle string errors directly
+			errorMessage = error;
+		} else {
+			// For other objects, try to stringify safely
+			try {
+				errorMessage = JSON.stringify(error);
+			} catch {
+				errorMessage = 'Unknown error occurred during publishing';
+			}
+		}
+		
+		// Display error in modal
 		new CompletedModal(this.app, {
 			uploadResults: {
 				errorMessage,
