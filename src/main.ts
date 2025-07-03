@@ -1,4 +1,4 @@
-import { Plugin, Notice, MarkdownView, Workspace, loadMermaid, EditorPosition } from "obsidian";
+import { Plugin, Notice, MarkdownView, Workspace, loadMermaid, EditorPosition, TFile } from "obsidian";
 import {
 	ConfluenceUploadSettings,
 	Publisher,
@@ -12,6 +12,7 @@ import { ElectronMermaidRenderer } from "@markdown-confluence/mermaid-electron-r
 import { ConfluenceSettingTab } from "./ConfluenceSettingTab";
 import ObsidianAdaptor from "./adaptors/obsidian";
 import { CompletedModal } from "./CompletedModal";
+import { PublishingModal, PublishingStatus } from "./PublishingModal";
 import { ObsidianConfluenceClient } from "./MyBaseClient";
 import {
 	ConfluencePerPageForm,
@@ -66,14 +67,15 @@ export default class ConfluencePlugin extends Plugin {
 	}
 	
 	/**
-	 * Execute a publish operation with proper state management and error handling
+	 * Execute a publish operation with proper state management, progress feedback, and error handling
 	 * This method handles the entire publishing process flow, including:
-	 * 1. Saving editor state (cursor position, scroll position)
-	 * 2. Setting the syncing flag to prevent multiple concurrent operations
-	 * 3. Executing the publish function
-	 * 4. Displaying results in a modal
-	 * 5. Restoring editor state when the modal is closed
-	 * 6. Error handling
+	 * 1. Immediately showing a progress modal to provide feedback
+	 * 2. Saving editor state (cursor position, scroll position)
+	 * 3. Setting the syncing flag to prevent multiple concurrent operations
+	 * 4. Executing the publish function with progress updates
+	 * 5. Displaying results in a completion modal
+	 * 6. Restoring editor state when the modal is closed
+	 * 7. Error handling
 	 * 
 	 * @param publishFn The publish function to execute
 	 * @param restoreState Whether to restore editor state after publishing
@@ -100,12 +102,49 @@ export default class ConfluencePlugin extends Plugin {
 			savedScrollInfo = activeView.editor.getScrollInfo();
 		}
 		
-		// Set syncing flag and execute operation
+		// Set syncing flag and initialize progress modal
 		this.isSyncing = true;
 		
+		// Create and show the publishing progress modal immediately
+		const publishingModal = new PublishingModal(this.app, {
+			filesProcessed: 0,
+			totalFiles: 0, // Will be updated once we know how many files to publish
+			stage: 'preparing'
+		});
+		publishingModal.open();
+		
+		// Variable for cleanup function
+		let cleanup: (() => void) | null = null;
+		
 		try {
-			// Execute the publish operation
+			// Step 1: Prepare files (scan vault, determine what to publish)
+			await this.updatePublishingProgress(publishingModal, {
+				stage: 'preparing'
+			});
+			
+			// Wait a moment to show the preparation stage
+			await new Promise(resolve => setTimeout(resolve, 300));
+			
+			// Step 2: Get the list of files to publish
+			const filesToPublish = await this.getFilesToPublish();
+			await this.updatePublishingProgress(publishingModal, {
+				totalFiles: filesToPublish.length,
+				stage: 'processing'
+			});
+			
+			// Step 3: Execute the actual publish operation
+			// We'll intercept the progress using our modified adaptor
+			cleanup = this.setupProgressTracking(publishingModal);
 			const stats = await publishFn();
+			
+			// Step 4: Update to finalizing stage
+			await this.updatePublishingProgress(publishingModal, {
+				filesProcessed: filesToPublish.length,
+				stage: 'finalizing'
+			});
+			
+			// Close the publishing progress modal
+			publishingModal.close();
 			
 			// Create and display the completion modal
 			const modal = new CompletedModal(this.app, {
@@ -136,12 +175,97 @@ export default class ConfluencePlugin extends Plugin {
 			
 			modal.open();
 		} catch (error) {
+			// Close the progress modal if it's open
+			publishingModal.close();
+			
 			// Handle any errors during publishing
 			this.handlePublishError(error);
 		} finally {
+			// Perform cleanup if we set up progress tracking
+			if (cleanup) {
+				cleanup();
+			}
+			
 			// Always reset the syncing flag regardless of success or failure
 			this.isSyncing = false;
 		}
+	}
+	
+	/**
+	 * Updates the publishing progress modal with new status information
+	 */
+	private async updatePublishingProgress(modal: PublishingModal, status: Partial<PublishingStatus>): Promise<void> {
+		// Update the modal with new status info
+		modal.updateStatus(status);
+		
+		// Give UI time to update
+		await new Promise(resolve => setTimeout(resolve, 10));
+	}
+	
+	/**
+	 * Gets a list of files that will be published
+	 */
+	private async getFilesToPublish(): Promise<TFile[]> {
+		// Get all markdown files that meet publication criteria
+		const files = this.app.vault.getMarkdownFiles();
+		const filesToPublish: TFile[] = [];
+		
+		for (const file of files) {
+			try {
+				if (file.path.endsWith(".excalidraw")) {
+					continue;
+				}
+				
+				const fileFM = this.app.metadataCache.getCache(file.path);
+				if (!fileFM) {
+					continue;
+				}
+				const frontMatter = fileFM.frontmatter;
+				
+				if (
+					(file.path.startsWith(this.settings.folderToPublish) &&
+						(!frontMatter || frontMatter["connie-publish"] !== false)) ||
+					(frontMatter && frontMatter["connie-publish"] === true)
+				) {
+					filesToPublish.push(file);
+				}
+			} catch {
+				// Skip files with errors
+			}
+		}
+		
+		return filesToPublish;
+	}
+	
+	/**
+	 * Sets up interceptors for tracking publish progress
+	 * @returns A cleanup function to restore original methods
+	 */
+	private setupProgressTracking(modal: PublishingModal): () => void {
+		let filesProcessed = 0;
+		
+		// Add a hook to the publisher to track progress
+		// This is a workaround until we have proper progress events from the library
+		const originalLoadMarkdownFile = this.adaptor.loadMarkdownFile;
+		this.adaptor.loadMarkdownFile = async (absoluteFilePath: string) => {
+			// Get the file name for display
+			const fileName = absoluteFilePath.split('/').pop() || absoluteFilePath;
+			
+			// Update the progress modal
+			await this.updatePublishingProgress(modal, {
+				currentFile: fileName,
+				filesProcessed: filesProcessed++
+			});
+			
+			// Call the original method
+			return originalLoadMarkdownFile.call(this.adaptor, absoluteFilePath);
+		};
+		
+		// Return a cleanup function
+		return () => {
+			// Restore original method
+			this.adaptor.loadMarkdownFile = originalLoadMarkdownFile;
+		};
 	}
 
 	activeLeafPath(workspace: Workspace) {
