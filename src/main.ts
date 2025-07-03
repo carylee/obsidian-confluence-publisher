@@ -49,6 +49,81 @@ export default class ConfluencePlugin extends Plugin {
 	workspace!: Workspace;
 	publisher!: Publisher;
 	adaptor!: ObsidianAdaptor;
+	
+	/**
+	 * Helper method to handle publish errors and display them in a modal
+	 */
+	private handlePublishError(error: unknown): void {
+		const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+		new CompletedModal(this.app, {
+			uploadResults: {
+				errorMessage,
+				failedFiles: [],
+				filesUploadResult: [],
+			},
+		}).open();
+	}
+	
+	/**
+	 * Execute a publish operation with proper state management and error handling
+	 * @param publishFn The publish function to execute
+	 * @param restoreState Whether to restore editor state after publishing
+	 */
+	private async executePublish(
+		publishFn: () => Promise<UploadResults>,
+		restoreState: boolean = false
+	): Promise<void> {
+		if (this.isSyncing) {
+			new Notice("Syncing already ongoing");
+			return;
+		}
+		
+		// Store active view and editor state if needed
+		const activeView = restoreState ? this.app.workspace.getActiveViewOfType(MarkdownView) : null;
+		let savedCursor: EditorPosition | null = null;
+		let savedScrollInfo: { top: number; left: number } | null = null;
+		
+		if (activeView && activeView.editor) {
+			// Save editor cursor position and scroll position
+			savedCursor = activeView.editor.getCursor('head');
+			savedScrollInfo = activeView.editor.getScrollInfo();
+		}
+		
+		// Set syncing flag and execute operation
+		this.isSyncing = true;
+		
+		try {
+			const stats = await publishFn();
+			
+			// Create and display the completion modal
+			const modal = new CompletedModal(this.app, {
+				uploadResults: stats,
+			});
+			
+			// Set up state restoration if needed
+			if (restoreState && activeView) {
+				modal.setCloseHandler(() => {
+					if (activeView && activeView.editor) {
+						activeView.editor.focus();
+						
+						if (savedCursor) {
+							activeView.editor.setCursor(savedCursor);
+						}
+						
+						if (savedScrollInfo) {
+							activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
+						}
+					}
+				});
+			}
+			
+			modal.open();
+		} catch (error) {
+			this.handlePublishError(error);
+		} finally {
+			this.isSyncing = false;
+		}
+	}
 
 	activeLeafPath(workspace: Workspace) {
 		return workspace.getActiveViewOfType(MarkdownView)?.file.path;
@@ -221,87 +296,16 @@ export default class ConfluencePlugin extends Plugin {
 	override async onload() {
 		await this.init();
 
-		this.addRibbonIcon("cloud", "Publish to Confluence", async (evt: MouseEvent) => {
+		this.addRibbonIcon("cloud", "Publish to Confluence", (evt: MouseEvent) => {
 			// Stop event propagation to prevent triggering other actions in Obsidian
 			evt.stopPropagation();
 			evt.preventDefault();
 			
-			if (this.isSyncing) {
-				new Notice("Syncing already on going");
-				return;
-			}
-			
-			// Store active view and editor state before publishing
-			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			let savedCursor: EditorPosition | null = null;
-			let savedScrollInfo: { top: number; left: number } | null = null;
-			
-			if (activeView && activeView.editor) {
-				// Save editor cursor position and scroll position
-				savedCursor = activeView.editor.getCursor('head');
-				savedScrollInfo = activeView.editor.getScrollInfo();
-			}
-			
-			// Set a flag to track the syncing state
-			this.isSyncing = true;
-			
-			try {
-				// Perform the publication process
-				const stats = await this.doPublish();
-				
-				// Defer UI updates to separate them from the event handling
-				setTimeout(() => {
-					const modal = new CompletedModal(this.app, {
-						uploadResults: stats,
-					});
-					
-					// Add proper cleanup when modal closes
-					modal.setCloseHandler(() => {
-						// Restore focus to the editor after modal is closed
-						if (activeView && activeView.editor) {
-							activeView.editor.focus();
-							
-							// Restore cursor and scroll position if available
-							if (savedCursor) {
-								activeView.editor.setCursor(savedCursor);
-							}
-							
-							if (savedScrollInfo) {
-								activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
-							}
-						}
-					});
-					
-					modal.open();
-				}, 50);
-			} catch (error) {
-				setTimeout(() => {
-					const modal = new CompletedModal(this.app, {
-						uploadResults: {
-							errorMessage: error instanceof Error ? error.message : JSON.stringify(error),
-							failedFiles: [],
-							filesUploadResult: [],
-						},
-					});
-					
-					// Same cleanup for error modal
-					modal.setCloseHandler(() => {
-						if (activeView && activeView.editor) {
-							activeView.editor.focus();
-							if (savedCursor) {
-								activeView.editor.setCursor(savedCursor);
-							}
-							if (savedScrollInfo) {
-								activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
-							}
-						}
-					});
-					
-					modal.open();
-				}, 50);
-			} finally {
-				this.isSyncing = false;
-			}
+			// Use our helper method to handle publishing with state restoration
+			void this.executePublish(
+				() => this.doPublish(), 
+				true // Restore editor state after publishing
+			);
 		});
 
 		this.addCommand({
@@ -340,40 +344,18 @@ export default class ConfluencePlugin extends Plugin {
 			id: "publish-current",
 			name: "Publish Current File to Confluence",
 			checkCallback: (checking: boolean) => {
-				if (!this.isSyncing) {
-					if (!checking) {
-						this.isSyncing = true;
-						this.doPublish(this.activeLeafPath(this.workspace))
-							.then((stats) => {
-								new CompletedModal(this.app, {
-									uploadResults: stats,
-								}).open();
-							})
-							.catch((error) => {
-								if (error instanceof Error) {
-									new CompletedModal(this.app, {
-										uploadResults: {
-											errorMessage: error.message,
-											failedFiles: [],
-											filesUploadResult: [],
-										},
-									}).open();
-								} else {
-									new CompletedModal(this.app, {
-										uploadResults: {
-											errorMessage: JSON.stringify(error),
-											failedFiles: [],
-											filesUploadResult: [],
-										},
-									}).open();
-								}
-							})
-							.finally(() => {
-								this.isSyncing = false;
-							});
-					}
-					return true;
+				if (this.isSyncing) {
+					return true; // Command is valid but can't be executed now
 				}
+				
+				if (!checking) {
+					// Execute the publish operation
+					void this.executePublish(
+						() => this.doPublish(this.activeLeafPath(this.workspace)),
+						true // Restore editor state
+					);
+				}
+				
 				return true;
 			},
 		});
@@ -382,39 +364,18 @@ export default class ConfluencePlugin extends Plugin {
 			id: "publish-all",
 			name: "Publish All to Confluence",
 			checkCallback: (checking: boolean) => {
-				if (!this.isSyncing) {
-					if (!checking) {
-						this.isSyncing = true;
-						this.doPublish()
-							.then((stats) => {
-								new CompletedModal(this.app, {
-									uploadResults: stats,
-								}).open();
-							})
-							.catch((error) => {
-								if (error instanceof Error) {
-									new CompletedModal(this.app, {
-										uploadResults: {
-											errorMessage: error.message,
-											failedFiles: [],
-											filesUploadResult: [],
-										},
-									}).open();
-								} else {
-									new CompletedModal(this.app, {
-										uploadResults: {
-											errorMessage: JSON.stringify(error),
-											failedFiles: [],
-											filesUploadResult: [],
-										},
-									}).open();
-								}
-							})
-							.finally(() => {
-								this.isSyncing = false;
-							});
-					}
+				if (this.isSyncing) {
+					return true; // Command is valid but can't be executed now
 				}
+				
+				if (!checking) {
+					// Execute the publish operation
+					void this.executePublish(
+						() => this.doPublish(),
+						true // Restore editor state
+					);
+				}
+				
 				return true;
 			},
 		});
