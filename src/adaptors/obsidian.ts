@@ -1,4 +1,4 @@
-import { Vault, MetadataCache, App, TFile } from "obsidian";
+import { Vault, MetadataCache, App, TFile, MarkdownView } from "obsidian";
 import {
 	ConfluenceUploadSettings,
 	BinaryFile,
@@ -122,6 +122,18 @@ export default class ObsidianAdaptor implements LoaderAdaptor {
 		const config = ConfluencePageConfig.conniePerPageConfig;
 		const file = this.app.vault.getAbstractFileByPath(absoluteFilePath);
 		if (file instanceof TFile) {
+			// Find the active view and save editor state before modifying front matter
+			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+			let savedSelection = null;
+			let savedScrollInfo = null;
+			
+			if (activeView && activeView.file && activeView.file.path === file.path && activeView.editor) {
+				// Only save state if the active file is the one being modified
+				savedSelection = activeView.editor.getSelection();
+				savedScrollInfo = activeView.editor.getScrollInfo();
+			}
+			
+			// Process the front matter changes
 			this.app.fileManager.processFrontMatter(file, (fm) => {
 				for (const propertyKey in config) {
 					if (!config.hasOwnProperty(propertyKey)) {
@@ -141,6 +153,24 @@ export default class ObsidianAdaptor implements LoaderAdaptor {
 					}
 				}
 			});
+			
+			// Restore editor state after a short delay to let Obsidian process the changes
+			if (activeView && activeView.file && activeView.file.path === file.path && activeView.editor) {
+				setTimeout(() => {
+					if (activeView && activeView.editor) {
+						// Ensure the view is still valid
+						activeView.editor.focus();
+						
+						if (savedSelection) {
+							activeView.editor.setSelection(savedSelection);
+						}
+						
+						if (savedScrollInfo) {
+							activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
+						}
+					}
+				}, 50);
+			}
 		}
 	}
 }
