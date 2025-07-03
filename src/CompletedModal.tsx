@@ -277,10 +277,16 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 
 export class CompletedModal extends Modal {
 	uploadResults: UploadResultsProps;
+	customCloseHandler: () => void = () => {}; // Add customizable close handler
 
 	constructor(app: App, uploadResults: UploadResultsProps) {
 		super(app);
 		this.uploadResults = uploadResults;
+	}
+
+	// Method to set the custom close handler
+	setCloseHandler(handler: () => void) {
+		this.customCloseHandler = handler;
 	}
 
 	override onOpen() {
@@ -290,6 +296,12 @@ export class CompletedModal extends Modal {
 		contentEl.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			// Don't use preventDefault here as it would break functionality of buttons and links
+		});
+		
+		// Add keyboard event listener to stop keyboard events from propagating
+		contentEl.addEventListener('keydown', (evt) => {
+			evt.stopPropagation();
+			// Don't prevent default to allow basic keyboard functionality
 		});
 		
 		ReactDOM.render(
@@ -302,5 +314,8 @@ export class CompletedModal extends Modal {
 		const { contentEl } = this;
 		ReactDOM.unmountComponentAtNode(contentEl);
 		contentEl.empty();
+		
+		// Call the customizable close handler
+		this.customCloseHandler();
 	}
 }

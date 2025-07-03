@@ -225,34 +225,80 @@ export default class ConfluencePlugin extends Plugin {
 			// Stop event propagation to prevent triggering other actions in Obsidian
 			evt.stopPropagation();
 			evt.preventDefault();
+			
 			if (this.isSyncing) {
 				new Notice("Syncing already on going");
 				return;
 			}
+			
+			// Store active view and editor state before publishing
+			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+			let savedSelection = null;
+			let savedScrollInfo = null;
+			
+			if (activeView && activeView.editor) {
+				// Save editor selection and scroll position
+				savedSelection = activeView.editor.getSelection();
+				savedScrollInfo = activeView.editor.getScrollInfo();
+			}
+			
+			// Set a flag to track the syncing state
 			this.isSyncing = true;
+			
 			try {
+				// Perform the publication process
 				const stats = await this.doPublish();
-				new CompletedModal(this.app, {
-					uploadResults: stats,
-				}).open();
+				
+				// Defer UI updates to separate them from the event handling
+				setTimeout(() => {
+					const modal = new CompletedModal(this.app, {
+						uploadResults: stats,
+					});
+					
+					// Add proper cleanup when modal closes
+					modal.setCloseHandler(() => {
+						// Restore focus to the editor after modal is closed
+						if (activeView && activeView.editor) {
+							activeView.editor.focus();
+							
+							// Restore selection and scroll position if available
+							if (savedSelection) {
+								activeView.editor.setSelection(savedSelection);
+							}
+							
+							if (savedScrollInfo) {
+								activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
+							}
+						}
+					});
+					
+					modal.open();
+				}, 50);
 			} catch (error) {
-				if (error instanceof Error) {
-					new CompletedModal(this.app, {
+				setTimeout(() => {
+					const modal = new CompletedModal(this.app, {
 						uploadResults: {
-							errorMessage: error.message,
+							errorMessage: error instanceof Error ? error.message : JSON.stringify(error),
 							failedFiles: [],
 							filesUploadResult: [],
 						},
-					}).open();
-				} else {
-					new CompletedModal(this.app, {
-						uploadResults: {
-							errorMessage: JSON.stringify(error),
-							failedFiles: [],
-							filesUploadResult: [],
-						},
-					}).open();
-				}
+					});
+					
+					// Same cleanup for error modal
+					modal.setCloseHandler(() => {
+						if (activeView && activeView.editor) {
+							activeView.editor.focus();
+							if (savedSelection) {
+								activeView.editor.setSelection(savedSelection);
+							}
+							if (savedScrollInfo) {
+								activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
+							}
+						}
+					});
+					
+					modal.open();
+				}, 50);
 			} finally {
 				this.isSyncing = false;
 			}
