@@ -1,4 +1,4 @@
-import { Plugin, Notice, MarkdownView, Workspace, loadMermaid } from "obsidian";
+import { Plugin, Notice, MarkdownView, Workspace, loadMermaid, EditorPosition } from "obsidian";
 import {
 	ConfluenceUploadSettings,
 	Publisher,
@@ -82,7 +82,7 @@ export default class ConfluencePlugin extends Plugin {
 			},
 			middlewares: {
 				onError(e) {
-					if ("response" in e && "data" in e.response) {
+					if ("response" in e && e.response && "data" in e.response) {
 						e.message =
 							typeof e.response.data === "string"
 								? e.response.data
@@ -233,12 +233,12 @@ export default class ConfluencePlugin extends Plugin {
 			
 			// Store active view and editor state before publishing
 			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			let savedSelection = null;
-			let savedScrollInfo = null;
+			let savedCursor: EditorPosition | null = null;
+			let savedScrollInfo: { top: number; left: number } | null = null;
 			
 			if (activeView && activeView.editor) {
-				// Save editor selection and scroll position
-				savedSelection = activeView.editor.getSelection();
+				// Save editor cursor position and scroll position
+				savedCursor = activeView.editor.getCursor('head');
 				savedScrollInfo = activeView.editor.getScrollInfo();
 			}
 			
@@ -261,9 +261,9 @@ export default class ConfluencePlugin extends Plugin {
 						if (activeView && activeView.editor) {
 							activeView.editor.focus();
 							
-							// Restore selection and scroll position if available
-							if (savedSelection) {
-								activeView.editor.setSelection(savedSelection);
+							// Restore cursor and scroll position if available
+							if (savedCursor) {
+								activeView.editor.setCursor(savedCursor);
 							}
 							
 							if (savedScrollInfo) {
@@ -288,8 +288,8 @@ export default class ConfluencePlugin extends Plugin {
 					modal.setCloseHandler(() => {
 						if (activeView && activeView.editor) {
 							activeView.editor.focus();
-							if (savedSelection) {
-								activeView.editor.setSelection(savedSelection);
+							if (savedCursor) {
+								activeView.editor.setCursor(savedCursor);
 							}
 							if (savedScrollInfo) {
 								activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);

@@ -16,9 +16,9 @@
      "moduleResolution": "node",
      "importHelpers": true,
      "isolatedModules": true,
-     "strictNullChecks": false,
-     "strict": false,
-     "noImplicitAny": false,
+     "strict": true,
+     "noUnusedLocals": true,
+     "noUnusedParameters": true,
      "esModuleInterop": true,
      "allowSyntheticDefaultImports": true,
      "lib": [

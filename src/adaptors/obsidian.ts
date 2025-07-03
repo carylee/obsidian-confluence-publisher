@@ -1,4 +1,4 @@
-import { Vault, MetadataCache, App, TFile, MarkdownView } from "obsidian";
+import { Vault, MetadataCache, App, TFile, MarkdownView, EditorPosition } from "obsidian";
 import {
 	ConfluenceUploadSettings,
 	BinaryFile,
@@ -124,12 +124,12 @@ export default class ObsidianAdaptor implements LoaderAdaptor {
 		if (file instanceof TFile) {
 			// Find the active view and save editor state before modifying front matter
 			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			let savedSelection = null;
-			let savedScrollInfo = null;
+			let savedCursor: EditorPosition | null = null;
+			let savedScrollInfo: { top: number; left: number } | null = null;
 			
 			if (activeView && activeView.file && activeView.file.path === file.path && activeView.editor) {
 				// Only save state if the active file is the one being modified
-				savedSelection = activeView.editor.getSelection();
+				savedCursor = activeView.editor.getCursor('head');
 				savedScrollInfo = activeView.editor.getScrollInfo();
 			}
 			
@@ -161,8 +161,8 @@ export default class ObsidianAdaptor implements LoaderAdaptor {
 						// Ensure the view is still valid
 						activeView.editor.focus();
 						
-						if (savedSelection) {
-							activeView.editor.setSelection(savedSelection);
+						if (savedCursor) {
+							activeView.editor.setCursor(savedCursor);
 						}
 						
 						if (savedScrollInfo) {

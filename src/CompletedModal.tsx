@@ -89,12 +89,12 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 		},
 		table: {
 			width: '100%',
-			borderCollapse: 'collapse',
+			borderCollapse: 'collapse' as 'collapse',
 			marginBottom: '16px',
 			fontSize: '0.9rem'
 		},
 		tableHeader: {
-			textAlign: 'left',
+			textAlign: 'left' as 'left',
 			padding: '8px',
 			backgroundColor: 'var(--background-modifier-hover)',
 			fontWeight: '600'
@@ -121,7 +121,7 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 			cursor: 'pointer',
 			fontSize: '0.9rem',
 			transition: 'background-color 150ms ease'
-		},
+		} as React.CSSProperties,
 		updatedList: {
 			marginTop: '12px',
 			padding: '0 0 0 16px'
@@ -219,14 +219,9 @@ const CompletedView: React.FC<UploadResultsProps> = ({ uploadResults }) => {
 							<button 
 								style={{
 									...styles.expandButton,
-									':hover': {
-										backgroundColor: 'var(--interactive-hover)'
-									},
-									':active': {
-										backgroundColor: 'var(--interactive-accent)'
-									},
+									// Pseudo-selectors won't work in inline styles, we'll address this in CSS refactor
 									outline: 'none',
-								}}
+								} as React.CSSProperties}
 								onClick={(evt) => {
 									// Stop event propagation to prevent triggering Obsidian UI actions
 									evt.stopPropagation();

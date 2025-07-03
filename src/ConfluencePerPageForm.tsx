@@ -2,7 +2,6 @@ import { Modal, App, FrontMatterCache } from "obsidian";
 import ReactDOM from "react-dom";
 import React, { useState, ChangeEvent } from "react";
 import { ConfluencePageConfig } from "@markdown-confluence/lib";
-import { Property } from "csstype";
 
 export type ConfluencePerPageUIValues = {
 	[K in keyof ConfluencePageConfig.ConfluencePerPageConfig]: {
