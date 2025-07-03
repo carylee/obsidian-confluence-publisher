@@ -1,8 +1,11 @@
 import esbuild from "esbuild";
 import process from "process";
-import builtins from 'builtin-modules'
+import builtins from 'builtin-modules';
 import { writeFileSync, copyFileSync, readFileSync } from 'fs';
+import dotenv from 'dotenv';
 
+// Load environment variables from .env file
+dotenv.config();
 
 const banner =
 `/*
@@ -40,7 +43,9 @@ const buildConfig = {
 	logLevel: "info",
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
-	outdir: prod ? 'dist' : '/Users/cary/Documents/Loom/loom/.obsidian/plugins/obsidian-confluence-publisher',
+	outdir: prod ? 'dist' : process.env.OBSIDIAN_VAULT_PATH ? 
+		`${process.env.OBSIDIAN_VAULT_PATH}/.obsidian/plugins/obsidian-confluence-publisher` : 
+		'dist',
 	mainFields: ['module', 'main'],
 	minify: true,
 	metafile: true,
@@ -70,5 +75,16 @@ if (prod) {
 	buildConfig.minify = false;
 	const context = await esbuild.context(buildConfig);
 	await context.watch();
-	console.log("👀 Watching for changes...");
+	
+	// Provide helpful feedback about the build destination
+	const outdir = process.env.OBSIDIAN_VAULT_PATH 
+		? `${process.env.OBSIDIAN_VAULT_PATH}/.obsidian/plugins/obsidian-confluence-publisher`
+		: 'dist';
+		
+	console.log(`👀 Watching for changes and building to: ${outdir}`);
+	
+	if (!process.env.OBSIDIAN_VAULT_PATH) {
+		console.warn("⚠️ OBSIDIAN_VAULT_PATH not set in .env file. Building to ./dist instead of your Obsidian vault.");
+		console.warn("   Create a .env file with OBSIDIAN_VAULT_PATH=/path/to/your/vault to build directly to your vault.");
+	}
 }

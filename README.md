@@ -37,21 +37,31 @@ This repository is a standalone version of the Obsidian Confluence plugin, extra
    pnpm install
    ```
 
-3. Build for development (with file watching):
+3. Create a `.env` file from the example:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Then edit the `.env` file to set your Obsidian vault path:
+   ```
+   OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
+   ```
+
+4. Build for development (with file watching):
    ```bash
    pnpm run dev
    ```
 
-   This will build the plugin to your Obsidian plugins directory (configured in `esbuild.config.mjs`).
+   This will build the plugin to your Obsidian plugins directory specified in the `.env` file.
 
-4. For production build:
+5. For production build:
    ```bash
    pnpm run build
    ```
    
    This creates a `dist` folder with the production build.
 
-5. Type checking (optional):
+6. Type checking (optional):
    ```bash
    pnpm run typecheck
    ```
@@ -60,11 +70,11 @@ This repository is a standalone version of the Obsidian Confluence plugin, extra
 
 ### Installing in Obsidian
 
-Before building, update the `outdir` in `esbuild.config.mjs` to point to your Obsidian vault's plugin directory:
+The development build automatically installs the plugin to your configured Obsidian vault. If the plugin doesn't appear, check that:
 
-```javascript
-outdir: prod ? 'dist' : '/path/to/your/vault/.obsidian/plugins/obsidian-confluence-publisher',
-```
+1. Your `.env` file has the correct `OBSIDIAN_VAULT_PATH` value
+2. You have enabled "Developer Mode" and "Load unpacked plugin" in Obsidian settings
+3. You've restarted Obsidian after building
 
 ## Issues
 Please log issues to https://github.com/markdown-confluence/markdown-confluence/issues as this is where the code is being developed. 
