@@ -67,6 +67,14 @@ export default class ConfluencePlugin extends Plugin {
 	
 	/**
 	 * Execute a publish operation with proper state management and error handling
+	 * This method handles the entire publishing process flow, including:
+	 * 1. Saving editor state (cursor position, scroll position)
+	 * 2. Setting the syncing flag to prevent multiple concurrent operations
+	 * 3. Executing the publish function
+	 * 4. Displaying results in a modal
+	 * 5. Restoring editor state when the modal is closed
+	 * 6. Error handling
+	 * 
 	 * @param publishFn The publish function to execute
 	 * @param restoreState Whether to restore editor state after publishing
 	 */
@@ -74,12 +82,14 @@ export default class ConfluencePlugin extends Plugin {
 		publishFn: () => Promise<UploadResults>,
 		restoreState: boolean = false
 	): Promise<void> {
+		// Prevent multiple concurrent sync operations
 		if (this.isSyncing) {
 			new Notice("Syncing already ongoing");
 			return;
 		}
 		
 		// Store active view and editor state if needed
+		// We capture the current state before any publishing occurs
 		const activeView = restoreState ? this.app.workspace.getActiveViewOfType(MarkdownView) : null;
 		let savedCursor: EditorPosition | null = null;
 		let savedScrollInfo: { top: number; left: number } | null = null;
@@ -94,6 +104,7 @@ export default class ConfluencePlugin extends Plugin {
 		this.isSyncing = true;
 		
 		try {
+			// Execute the publish operation
 			const stats = await publishFn();
 			
 			// Create and display the completion modal
@@ -101,16 +112,21 @@ export default class ConfluencePlugin extends Plugin {
 				uploadResults: stats,
 			});
 			
-			// Set up state restoration if needed
+			// Set up state restoration to occur when the modal is closed
+			// This ensures the editor state is restored only after the user dismisses the modal
 			if (restoreState && activeView) {
 				modal.setCloseHandler(() => {
+					// Verify the view is still valid before attempting to restore state
 					if (activeView && activeView.editor) {
+						// First restore focus to the editor
 						activeView.editor.focus();
 						
+						// Then restore cursor position if available
 						if (savedCursor) {
 							activeView.editor.setCursor(savedCursor);
 						}
 						
+						// Finally restore scroll position if available
 						if (savedScrollInfo) {
 							activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
 						}
@@ -120,8 +136,10 @@ export default class ConfluencePlugin extends Plugin {
 			
 			modal.open();
 		} catch (error) {
+			// Handle any errors during publishing
 			this.handlePublishError(error);
 		} finally {
+			// Always reset the syncing flag regardless of success or failure
 			this.isSyncing = false;
 		}
 	}

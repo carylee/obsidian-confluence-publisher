@@ -155,21 +155,28 @@ export default class ObsidianAdaptor implements LoaderAdaptor {
 			});
 			
 			// Restore editor state after a short delay to let Obsidian process the changes
+			// NOTE: The setTimeout approach is used because Obsidian doesn't provide hooks
+			// for "after front matter processing is complete". This is a common pattern in Obsidian plugins.
+			// The delay gives Obsidian time to finish processing the file updates before we attempt to restore state.
 			if (activeView && activeView.file && activeView.file.path === file.path && activeView.editor) {
 				setTimeout(() => {
+					// Double-check that the view and editor are still available and valid
+					// This guards against cases where the user quickly switches to a different file
 					if (activeView && activeView.editor) {
-						// Ensure the view is still valid
+						// First restore focus to the editor
 						activeView.editor.focus();
 						
+						// Then restore cursor position if we saved it
 						if (savedCursor) {
 							activeView.editor.setCursor(savedCursor);
 						}
 						
+						// Finally restore scroll position if we saved it
 						if (savedScrollInfo) {
 							activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
 						}
 					}
-				}, 50);
+				}, 100); // Increased timeout for better reliability
 			}
 		}
 	}
