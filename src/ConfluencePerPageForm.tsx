@@ -100,313 +100,195 @@ const styles = {
 	},
 };
 
-const renderTextInput = (
-	key: string,
-	config: ConfluencePageConfig.FrontmatterConfig<string, "text">,
-	values: ConfluencePerPageUIValues,
-	errors: Record<string, Error[]>,
-	setValues: React.Dispatch<React.SetStateAction<ConfluencePerPageUIValues>>,
-	setErrors: React.Dispatch<React.SetStateAction<Record<string, Error[]>>>,
-) => (
-	<>
-		<tr key={key}>
-			<td>
-				<label htmlFor={key}>{config.key}</label>
-			</td>
-			<td>
-				<input
-					type="text"
-					id={key}
-					value={
-						(values[key as keyof ConfluencePerPageUIValues]
-							.value as string) ?? ""
-					}
-					onChange={(e: ChangeEvent<HTMLInputElement>) =>
-						handleChange(
-							key,
-							e.target.value,
-							config.inputValidator,
-							setValues,
-							setErrors,
-							false,
-						)
-					}
-				/>
-			</td>
-			<td>
-				<input
-					type="checkbox"
-					id={`${key}-isSet`}
-					checked={
-						values[key as keyof ConfluencePerPageUIValues]
-							.isSet as boolean
-					}
-					onChange={(e: ChangeEvent<HTMLInputElement>) =>
-						handleChange(
-							key,
-							e.target.checked,
-							config.inputValidator,
-							setValues,
-							setErrors,
-							true,
-						)
-					}
-				/>
-			</td>
-		</tr>
-		<tr key={`${key}-errors`}>
-			{(errors[key]?.length ?? 0) > 0 && (
-				<td colSpan={3}>
-					<div className="error" style={styles.errorTd}>
-						{(errors[key] ?? []).map((error) => (
-							<p key={error.message}>{error.message}</p>
-						))}
-					</div>
-				</td>
-			)}
-		</tr>
-	</>
-);
-
-const renderArrayText = (
-	key: string,
-	config: ConfluencePageConfig.FrontmatterConfig<string[], "array-text">,
-	values: ConfluencePerPageUIValues,
-	errors: Record<string, Error[]>,
-	setValues: React.Dispatch<React.SetStateAction<ConfluencePerPageUIValues>>,
-	setErrors: React.Dispatch<React.SetStateAction<Record<string, Error[]>>>,
-) => (
-	<>
-		<tr key={key}>
-			<td>
-				<label htmlFor={key}>{config.key}</label>
-			</td>
-			<td>
-				{(
-					values[key as keyof ConfluencePerPageUIValues]
-						.value as unknown as string[]
-				).map((value, index) => (
+/**
+ * Generic form field component that handles rendering different input types
+ */
+const FormField = ({
+	fieldKey,
+	config,
+	values,
+	errors,
+	setValues,
+	setErrors,
+}: {
+	fieldKey: string;
+	config: ConfluencePageConfig.FrontmatterConfig<unknown, ConfluencePageConfig.InputType>;
+	values: ConfluencePerPageUIValues;
+	errors: Record<string, Error[]>;
+	setValues: React.Dispatch<React.SetStateAction<ConfluencePerPageUIValues>>;
+	setErrors: React.Dispatch<React.SetStateAction<Record<string, Error[]>>>;
+}) => {
+	// Helper function to get the strongly typed value from the values object
+	const getValue = () => values[fieldKey as keyof ConfluencePerPageUIValues].value;
+	const getIsSet = () => values[fieldKey as keyof ConfluencePerPageUIValues].isSet as boolean;
+	
+	// Handler for the isSet checkbox
+	const handleIsSetChange = (e: ChangeEvent<HTMLInputElement>) => {
+		handleChange(
+			fieldKey,
+			e.target.checked,
+			config.inputValidator,
+			setValues,
+			setErrors,
+			true
+		);
+	};
+	
+	// Render the appropriate input control based on inputType
+	const renderInputControl = () => {
+		switch (config.inputType) {
+			case "text":
+				return (
 					<input
-						key={`${key}-${index}`}
 						type="text"
-						value={value}
-						onChange={(e: ChangeEvent<HTMLInputElement>) => {
-							const newArray = [
-								...(values[
-									key as keyof ConfluencePerPageUIValues
-								].value as unknown as string[]),
-							];
-							newArray[index] = e.target.value;
+						id={fieldKey}
+						value={(getValue() as string) ?? ""}
+						onChange={(e: ChangeEvent<HTMLInputElement>) =>
 							handleChange(
-								key,
-								newArray,
+								fieldKey,
+								e.target.value,
 								config.inputValidator,
 								setValues,
 								setErrors,
-								false,
-							);
-						}}
+								false
+							)
+						}
 					/>
-				))}
-				<button
-					type="button"
-					onClick={() => {
-						const newArray = [
-							...(values[key as keyof ConfluencePerPageUIValues]
-								.value as string[]),
-							"",
-						];
-						handleChange(
-							key,
-							newArray,
-							config.inputValidator,
-							setValues,
-							setErrors,
-							false,
-						);
-					}}
-				>
-					+
-				</button>
-			</td>
-			<td>
-				<input
-					type="checkbox"
-					id={`${key}-isSet`}
-					checked={
-						values[key as keyof ConfluencePerPageUIValues]
-							.isSet as boolean
-					}
-					onChange={(e: ChangeEvent<HTMLInputElement>) =>
-						handleChange(
-							key,
-							e.target.checked,
-							config.inputValidator,
-							setValues,
-							setErrors,
-							true,
-						)
-					}
-				/>
-			</td>
-		</tr>
-		<tr key={`${key}-errors`}>
-			{(errors[key]?.length ?? 0) > 0 && (
+				);
+				
+			case "boolean":
+				return (
+					<input
+						type="checkbox"
+						id={fieldKey}
+						checked={getValue() as boolean}
+						onChange={(e: ChangeEvent<HTMLInputElement>) =>
+							handleChange(
+								fieldKey,
+								e.target.checked,
+								config.inputValidator,
+								setValues,
+								setErrors,
+								false
+							)
+						}
+					/>
+				);
+				
+			case "array-text":
+				return (
+					<div>
+						{(getValue() as string[]).map((value, index) => (
+							<input
+								key={`${fieldKey}-${index}`}
+								type="text"
+								value={value}
+								onChange={(e: ChangeEvent<HTMLInputElement>) => {
+									const newArray = [...(getValue() as string[])];
+									newArray[index] = e.target.value;
+									handleChange(
+										fieldKey,
+										newArray,
+										config.inputValidator,
+										setValues,
+										setErrors,
+										false
+									);
+								}}
+							/>
+						))}
+						<button
+							type="button"
+							onClick={() => {
+								const newArray = [...(getValue() as string[]), ""];
+								handleChange(
+									fieldKey,
+									newArray,
+									config.inputValidator,
+									setValues,
+									setErrors,
+									false
+								);
+							}}
+						>
+							+
+						</button>
+					</div>
+				);
+				
+			case "options":
+				const typedConfig = config as ConfluencePageConfig.FrontmatterConfig<
+					ConfluencePageConfig.PageContentType,
+					"options"
+				>;
+				return (
+					<select
+						id={fieldKey}
+						value={getValue() as ConfluencePageConfig.PageContentType}
+						onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+							handleChange(
+								fieldKey,
+								e.target.value as ConfluencePageConfig.PageContentType,
+								config.inputValidator,
+								setValues,
+								setErrors,
+								false
+							)
+						}
+					>
+						{typedConfig.selectOptions.map((option) => (
+							<option key={option} value={option}>
+								{option}
+							</option>
+						))}
+					</select>
+				);
+				
+			default:
+				return <div>Unsupported input type: {config.inputType}</div>;
+		}
+	};
+	
+	// Render errors if any
+	const renderErrors = () => {
+		if ((errors[fieldKey]?.length ?? 0) > 0) {
+			return (
 				<td colSpan={3}>
 					<div className="error" style={styles.errorTd}>
-						{(errors[key] ?? []).map((error) => (
+						{(errors[fieldKey] ?? []).map((error) => (
 							<p key={error.message}>{error.message}</p>
 						))}
 					</div>
 				</td>
-			)}
-		</tr>
-	</>
-);
-
-const renderBoolean = (
-	key: string,
-	config: ConfluencePageConfig.FrontmatterConfig<boolean, "boolean">,
-	values: ConfluencePerPageUIValues,
-	errors: Record<string, Error[]>,
-	setValues: React.Dispatch<React.SetStateAction<ConfluencePerPageUIValues>>,
-	setErrors: React.Dispatch<React.SetStateAction<Record<string, Error[]>>>,
-) => (
-	<>
-		<tr key={key}>
-			<td>
-				<label htmlFor={key}>{config.key}</label>
-			</td>
-			<td>
-				<input
-					type="checkbox"
-					id={key}
-					checked={
-						values[key as keyof ConfluencePerPageUIValues]
-							.value as boolean
-					}
-					onChange={(e: ChangeEvent<HTMLInputElement>) =>
-						handleChange(
-							key,
-							e.target.checked,
-							config.inputValidator,
-							setValues,
-							setErrors,
-							false,
-						)
-					}
-				/>
-			</td>
-			<td>
-				<input
-					type="checkbox"
-					id={`${key}-isSet`}
-					checked={
-						values[key as keyof ConfluencePerPageUIValues]
-							.isSet as boolean
-					}
-					onChange={(e: ChangeEvent<HTMLInputElement>) =>
-						handleChange(
-							key,
-							e.target.checked,
-							config.inputValidator,
-							setValues,
-							setErrors,
-							true,
-						)
-					}
-				/>
-			</td>
-		</tr>
-		<tr key={`${key}-errors`}>
-			{(errors[key]?.length ?? 0) > 0 && (
-				<td colSpan={3}>
-					<div className="error" style={styles.errorTd}>
-						{(errors[key] ?? []).map((error) => (
-							<p key={error.message}>{error.message}</p>
-						))}
-					</div>
+			);
+		}
+		return null;
+	};
+	
+	return (
+		<>
+			<tr key={fieldKey}>
+				<td>
+					<label htmlFor={fieldKey}>{config.key}</label>
 				</td>
-			)}
-		</tr>
-	</>
-);
-const renderOptions = (
-	key: string,
-	config: ConfluencePageConfig.FrontmatterConfig<
-		ConfluencePageConfig.PageContentType,
-		"options"
-	>,
-	values: ConfluencePerPageUIValues,
-	errors: Record<string, Error[]>,
-	setValues: React.Dispatch<React.SetStateAction<ConfluencePerPageUIValues>>,
-	setErrors: React.Dispatch<React.SetStateAction<Record<string, Error[]>>>,
-) => (
-	<>
-		<tr key={key}>
-			<td>
-				<label htmlFor={key}>{config.key}</label>
-			</td>
-			<td>
-				<select
-					id={key}
-					value={
-						values[key as keyof ConfluencePerPageUIValues]
-							.value as ConfluencePageConfig.PageContentType
-					}
-					onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-						handleChange(
-							key,
-							e.target
-								.value as ConfluencePageConfig.PageContentType,
-							config.inputValidator,
-							setValues,
-							setErrors,
-							false,
-						)
-					}
-				>
-					{config.selectOptions.map((option) => (
-						<option key={option} value={option}>
-							{option}
-						</option>
-					))}
-				</select>
-			</td>
-			<td>
-				<input
-					type="checkbox"
-					id={`${key}-isSet`}
-					checked={
-						values[key as keyof ConfluencePerPageUIValues]
-							.isSet as boolean
-					}
-					onChange={(e: ChangeEvent<HTMLInputElement>) =>
-						handleChange(
-							key,
-							e.target.checked,
-							config.inputValidator,
-							setValues,
-							setErrors,
-							true,
-						)
-					}
-				/>
-			</td>
-		</tr>
-		<tr key={`${key}-errors`}>
-			{(errors[key]?.length ?? 0) > 0 && (
-				<td colSpan={3}>
-					<div className="error" style={styles.errorTd}>
-						{(errors[key] ?? []).map((error) => (
-							<p key={error.message}>{error.message}</p>
-						))}
-					</div>
+				<td>
+					{renderInputControl()}
 				</td>
-			)}
-		</tr>
-	</>
-);
+				<td>
+					<input
+						type="checkbox"
+						id={`${fieldKey}-isSet`}
+						checked={getIsSet()}
+						onChange={handleIsSetChange}
+					/>
+				</td>
+			</tr>
+			<tr key={`${fieldKey}-errors`}>
+				{renderErrors()}
+			</tr>
+		</>
+	);
+};
 
 const ConfluenceForm: React.FC<FormProps> = ({
 	config,
@@ -434,60 +316,17 @@ const ConfluenceForm: React.FC<FormProps> = ({
 					</tr>
 				</thead>
 				<tbody>
-					{Object.entries(config).map(([key, config]) => {
-						switch (config.inputType) {
-							case "text":
-								return renderTextInput(
-									key,
-									config as ConfluencePageConfig.FrontmatterConfig<
-										string,
-										"text"
-									>,
-									values,
-									errors,
-									setValues,
-									setErrors,
-								);
-							case "array-text":
-								return renderArrayText(
-									key,
-									config as ConfluencePageConfig.FrontmatterConfig<
-										string[],
-										"array-text"
-									>,
-									values,
-									errors,
-									setValues,
-									setErrors,
-								);
-							case "boolean":
-								return renderBoolean(
-									key,
-									config as ConfluencePageConfig.FrontmatterConfig<
-										boolean,
-										"boolean"
-									>,
-									values,
-									errors,
-									setValues,
-									setErrors,
-								);
-							case "options":
-								return renderOptions(
-									key,
-									config as ConfluencePageConfig.FrontmatterConfig<
-										ConfluencePageConfig.PageContentType,
-										"options"
-									>,
-									values,
-									errors,
-									setValues,
-									setErrors,
-								);
-							default:
-								return null;
-						}
-					})}
+					{Object.entries(config).map(([key, fieldConfig]) => (
+						<FormField 
+							key={key}
+							fieldKey={key}
+							config={fieldConfig}
+							values={values}
+							errors={errors}
+							setValues={setValues}
+							setErrors={setErrors}
+						/>
+					))}
 				</tbody>
 			</table>
 			<button type="submit">Submit</button>
