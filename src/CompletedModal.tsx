@@ -197,6 +197,12 @@ export class CompletedModal extends Modal {
 		// Clear content before creating new elements
 		contentEl.empty();
 		
+		// Make the modal container focusable and immediately focus it.
+		// This prevents keyboard events from "leaking" to the editor behind the modal.
+		// `tabIndex = -1` makes it focusable via script but not via tab-key navigation.
+		contentEl.tabIndex = -1;
+		contentEl.focus();
+		
 		// Add a click handler to the modal container to stop event propagation
 		contentEl.addEventListener('click', (evt) => {
 			evt.stopPropagation();
@@ -216,6 +222,9 @@ export class CompletedModal extends Modal {
 			React.createElement(CompletedView, this.uploadResults),
 			this.reactRoot
 		);
+		
+		// Re-focus in case focus was lost during rendering
+		setTimeout(() => contentEl.focus(), 0);
 	}
 
 	override onClose() {

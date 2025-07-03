@@ -99,6 +99,11 @@ export class PublishingModal extends Modal {
                 React.createElement(PublishingView, { status: this.status }),
                 this.reactRoot
             );
+            
+            // Re-focus the modal after updating to ensure we maintain focus
+            if (this.contentEl) {
+                setTimeout(() => this.contentEl.focus(), 0);
+            }
         }
     }
     
@@ -106,6 +111,12 @@ export class PublishingModal extends Modal {
         const { contentEl } = this;
         // Clear content before creating new elements
         contentEl.empty();
+        
+        // Make the modal container focusable and immediately focus it.
+        // This prevents keyboard events from "leaking" to the editor behind the modal.
+        // `tabIndex = -1` makes it focusable via script but not via tab-key navigation.
+        contentEl.tabIndex = -1;
+        contentEl.focus();
         
         // Add event listeners to prevent event propagation
         contentEl.addEventListener('click', (evt) => {
@@ -124,6 +135,9 @@ export class PublishingModal extends Modal {
             React.createElement(PublishingView, { status: this.status }),
             this.reactRoot
         );
+        
+        // Re-focus in case focus was lost during rendering
+        setTimeout(() => contentEl.focus(), 0);
     }
     
     override onClose() {
