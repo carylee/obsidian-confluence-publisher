@@ -164,12 +164,29 @@ export default class ConfluencePlugin extends Plugin {
 
 		const isDarkMode = document.body.classList.contains('theme-dark');
 
+		// Add custom CSS to fix Mermaid diagram height and padding issues
+		extraStyles.push(`
+			#graphDiv svg {
+				padding-bottom: 20px !important; /* Add extra space at the bottom */
+				margin-bottom: 10px !important; /* Add margin for better spacing */
+			}
+			.mermaid {
+				overflow: visible !important; /* Prevent content clipping */
+			}
+		`);
+
 		return {
 			extraStyleSheets,
 			extraStyles,
 			mermaidConfig: {
 				...((await loadMermaid()) as typeof mermaid).mermaidAPI.getConfig(),
 				theme: isDarkMode ? 'dark' : 'default',
+				// Add extra bottom padding in diagram
+				themeVariables: {
+					diagramPadding: 15
+				},
+				// Make sure all diagram content is properly rendered
+				securityLevel: 'loose'
 			},
 			bodyStyles,
 		};
