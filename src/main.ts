@@ -115,23 +115,23 @@ export default class ConfluencePlugin extends Plugin {
 			// Set up state restoration to occur when the modal is closed
 			// This ensures the editor state is restored only after the user dismisses the modal
 			if (restoreState && activeView) {
-				modal.setCloseHandler(() => {
-					// Verify the view is still valid before attempting to restore state
-					if (activeView && activeView.editor) {
-						// First restore focus to the editor
-						activeView.editor.focus();
-						
-						// Then restore cursor position if available
-						if (savedCursor) {
-							activeView.editor.setCursor(savedCursor);
-						}
-						
-						// Finally restore scroll position if available
-						if (savedScrollInfo) {
-							activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
-						}
-					}
-				});
+          modal.setCloseHandler(() => {
+              // Use a timeout of 0 to push this execution to the next event loop tick.
+              // This allows the modal-closing event (e.g., 'Escape' key press) to fully
+              // resolve before we programmatically restore focus to the editor,
+              // preventing the race condition.
+              setTimeout(() => {
+                  if (activeView && activeView.editor) {
+                      activeView.editor.focus();
+                      if (savedCursor) {
+                          activeView.editor.setCursor(savedCursor);
+                      }
+                      if (savedScrollInfo) {
+                          activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
+                      }
+                  }
+              }, 0); 
+          });
 			}
 			
 			modal.open();
