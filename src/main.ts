@@ -1,4 +1,4 @@
-import { Plugin, Notice, MarkdownView, Workspace, loadMermaid, EditorPosition, TFile } from "obsidian";
+import { Plugin, Notice, MarkdownView, Workspace, loadMermaid, EditorPosition } from "obsidian";
 import {
 	ConfluenceUploadSettings,
 	Publisher,
@@ -11,7 +11,7 @@ import {
 import { ElectronMermaidRenderer } from "@markdown-confluence/mermaid-electron-renderer";
 import { ConfluenceSettingTab } from "./ConfluenceSettingTab";
 import ObsidianAdaptor from "./adaptors/obsidian";
-import { ConfluencePublishModal, PublishingStatus, UploadResults, FailedFile } from "./ConfluencePublishModal";
+import { CompletedModal } from "./CompletedModal";
 import { ObsidianConfluenceClient } from "./MyBaseClient";
 import {
 	ConfluencePerPageForm,
@@ -33,7 +33,16 @@ export interface ObsidianPluginSettings
 		| "forest";
 }
 
-// Interfaces moved to ConfluencePublishModal.tsx
+interface FailedFile {
+	fileName: string;
+	reason: string;
+}
+
+interface UploadResults {
+	errorMessage: string | null;
+	failedFiles: FailedFile[];
+	filesUploadResult: UploadAdfFileResult[];
+}
 
 export default class ConfluencePlugin extends Plugin {
 	settings!: ObsidianPluginSettings;
@@ -45,52 +54,26 @@ export default class ConfluencePlugin extends Plugin {
 	/**
 	 * Helper method to handle publish errors and display them in a modal
 	 */
-	private handlePublishError(error: unknown, modal?: ConfluencePublishModal): void {
-		// Format the error message with better handling of different error types
-		let errorMessage: string;
-		
-		if (error instanceof Error) {
-			// For standard Error objects, include name and message
-			errorMessage = `${error.name}: ${error.message}`;
-			// Include stack trace in the console for debugging
-			console.error('Publishing error:', error);
-		} else if (typeof error === 'string') {
-			// Handle string errors directly
-			errorMessage = error;
-		} else {
-			// For other objects, try to stringify safely
-			try {
-				errorMessage = JSON.stringify(error);
-			} catch {
-				errorMessage = 'Unknown error occurred during publishing';
-			}
-		}
-		
-		// If we have a modal already open, use it to show the error
-		if (modal) {
-			modal.showError(errorMessage);
-		} else {
-			// Otherwise create a new modal for the error
-			const errorModal = new ConfluencePublishModal(this.app, {
-				filesProcessed: 0,
-				totalFiles: 0,
-				stage: 'preparing'
-			});
-			errorModal.open();
-			errorModal.showError(errorMessage);
-		}
+	private handlePublishError(error: unknown): void {
+		const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+		new CompletedModal(this.app, {
+			uploadResults: {
+				errorMessage,
+				failedFiles: [],
+				filesUploadResult: [],
+			},
+		}).open();
 	}
 	
 	/**
-	 * Execute a publish operation with proper state management, progress feedback, and error handling
+	 * Execute a publish operation with proper state management and error handling
 	 * This method handles the entire publishing process flow, including:
-	 * 1. Immediately showing a progress modal to provide feedback
-	 * 2. Saving editor state (cursor position, scroll position)
-	 * 3. Setting the syncing flag to prevent multiple concurrent operations
-	 * 4. Executing the publish function with progress updates
-	 * 5. Displaying results in a completion modal
-	 * 6. Restoring editor state when the modal is closed
-	 * 7. Error handling
+	 * 1. Saving editor state (cursor position, scroll position)
+	 * 2. Setting the syncing flag to prevent multiple concurrent operations
+	 * 3. Executing the publish function
+	 * 4. Displaying results in a modal
+	 * 5. Restoring editor state when the modal is closed
+	 * 6. Error handling
 	 * 
 	 * @param publishFn The publish function to execute
 	 * @param restoreState Whether to restore editor state after publishing
@@ -117,158 +100,48 @@ export default class ConfluencePlugin extends Plugin {
 			savedScrollInfo = activeView.editor.getScrollInfo();
 		}
 		
-		// Set syncing flag and initialize progress modal
+		// Set syncing flag and execute operation
 		this.isSyncing = true;
 		
-		// Create and open a single modal that will be used throughout the entire publishing process
-		const modal = new ConfluencePublishModal(this.app, {
-			filesProcessed: 0,
-			totalFiles: 0,
-			stage: 'preparing'
-		});
-		modal.open();
-		
-		// Set up state restoration to occur when the modal is closed
-		// This ensures the editor state is restored only after the user dismisses the modal
-		if (restoreState && activeView) {
-			modal.setCloseHandler(() => {
-				// Verify the view is still valid before attempting to restore state
-				if (activeView && activeView.editor) {
-					// First restore focus to the editor
-					activeView.editor.focus();
-					
-					// Then restore cursor position if available
-					if (savedCursor) {
-						activeView.editor.setCursor(savedCursor);
-					}
-					
-					// Finally restore scroll position if available
-					if (savedScrollInfo) {
-						activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
-					}
-				}
-			});
-		}
-		
-		// Variable for cleanup function
-		let cleanup: (() => void) | null = null;
-		
 		try {
-			// Get the list of files to publish and update the modal's status
-			const filesToPublish = await this.getFilesToPublish();
-			modal.updateStatus({
-				totalFiles: filesToPublish.length,
-				stage: 'processing'
-			});
-			
-			// Setup progress tracking and execute publish
-			cleanup = this.setupProgressTracking(modal);
+			// Execute the publish operation
 			const stats = await publishFn();
 			
-			// Update to finalizing stage
-			modal.updateStatus({
-				filesProcessed: filesToPublish.length,
-				stage: 'finalizing'
+			// Create and display the completion modal
+			const modal = new CompletedModal(this.app, {
+				uploadResults: stats,
 			});
 			
-			// Wait a moment to show the finalizing stage, then show results
-			await new Promise(resolve => setTimeout(resolve, 300));
-			
-			// Instead of closing the modal and opening a new one,
-			// simply switch to the completed view in the same modal
-			modal.showResults(stats);
-			
-		} catch (error) {
-			// Show error in the same modal (no need to close it first)
-			this.handlePublishError(error, modal);
-			
-		} finally {
-			// Perform cleanup if we set up progress tracking
-			if (cleanup) {
-				cleanup();
+			// Set up state restoration to occur when the modal is closed
+			// This ensures the editor state is restored only after the user dismisses the modal
+			if (restoreState && activeView) {
+				modal.setCloseHandler(() => {
+					// Verify the view is still valid before attempting to restore state
+					if (activeView && activeView.editor) {
+						// First restore focus to the editor
+						activeView.editor.focus();
+						
+						// Then restore cursor position if available
+						if (savedCursor) {
+							activeView.editor.setCursor(savedCursor);
+						}
+						
+						// Finally restore scroll position if available
+						if (savedScrollInfo) {
+							activeView.editor.scrollTo(savedScrollInfo.left, savedScrollInfo.top);
+						}
+					}
+				});
 			}
 			
+			modal.open();
+		} catch (error) {
+			// Handle any errors during publishing
+			this.handlePublishError(error);
+		} finally {
 			// Always reset the syncing flag regardless of success or failure
 			this.isSyncing = false;
 		}
-		// We do NOT close the modal here - let the user close it
-	}
-	
-	/**
-	 * This method is no longer needed as the ConfluencePublishModal handles its own updates
-	 */
-	// private async updatePublishingProgress(modal: PublishingModal, status: Partial<PublishingStatus>): Promise<void> {
-	// 	// Update the modal with new status info
-	// 	modal.updateStatus(status);
-	// 	
-	// 	// Give UI time to update
-	// 	await new Promise(resolve => setTimeout(resolve, 10));
-	// }
-	
-	/**
-	 * Gets a list of files that will be published
-	 */
-	private async getFilesToPublish(): Promise<TFile[]> {
-		// Get all markdown files that meet publication criteria
-		const files = this.app.vault.getMarkdownFiles();
-		const filesToPublish: TFile[] = [];
-		
-		for (const file of files) {
-			try {
-				if (file.path.endsWith(".excalidraw")) {
-					continue;
-				}
-				
-				const fileFM = this.app.metadataCache.getCache(file.path);
-				if (!fileFM) {
-					continue;
-				}
-				const frontMatter = fileFM.frontmatter;
-				
-				if (
-					(file.path.startsWith(this.settings.folderToPublish) &&
-						(!frontMatter || frontMatter["connie-publish"] !== false)) ||
-					(frontMatter && frontMatter["connie-publish"] === true)
-				) {
-					filesToPublish.push(file);
-				}
-			} catch {
-				// Skip files with errors
-			}
-		}
-		
-		return filesToPublish;
-	}
-	
-	/**
-	 * Sets up interceptors for tracking publish progress
-	 * @returns A cleanup function to restore original methods
-	 */
-	private setupProgressTracking(modal: ConfluencePublishModal): () => void {
-		let filesProcessed = 0;
-		
-		// Add a hook to the publisher to track progress
-		// This is a workaround until we have proper progress events from the library
-		const originalLoadMarkdownFile = this.adaptor.loadMarkdownFile;
-		this.adaptor.loadMarkdownFile = async (absoluteFilePath: string) => {
-			// Get the file name for display
-			const fileName = absoluteFilePath.split('/').pop() || absoluteFilePath;
-			
-			// Update the progress modal directly
-			modal.updateStatus({
-				currentFile: fileName,
-				filesProcessed: filesProcessed++
-			});
-			
-			// Call the original method
-			return originalLoadMarkdownFile.call(this.adaptor, absoluteFilePath);
-		};
-		
-		// Return a cleanup function
-		return () => {
-			// Restore original method
-			this.adaptor.loadMarkdownFile = originalLoadMarkdownFile;
-		};
 	}
 
 	activeLeafPath(workspace: Workspace) {
