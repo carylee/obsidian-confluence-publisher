@@ -4,6 +4,7 @@ import {
 	BinaryFile,
 	FilesToUpload,
 	LoaderAdaptor,
+
 	MarkdownFile,
 	ConfluencePageConfig,
 } from "@markdown-confluence/lib";
@@ -115,6 +116,7 @@ export default class ObsidianAdaptor implements LoaderAdaptor {
 
 		return false;
 	}
+
 	async updateMarkdownValues(
 		absoluteFilePath: string,
 		values: Partial<ConfluencePageConfig.ConfluencePerPageAllValues>,
@@ -122,18 +124,11 @@ export default class ObsidianAdaptor implements LoaderAdaptor {
 		const config = ConfluencePageConfig.conniePerPageConfig;
 		const file = this.app.vault.getAbstractFileByPath(absoluteFilePath);
 		if (file instanceof TFile) {
-			// Find the active view and save editor state before modifying front matter
-			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			let savedCursor: EditorPosition | null = null;
-			let savedScrollInfo: { top: number; left: number } | null = null;
-			
-			if (activeView && activeView.file && activeView.file.path === file.path && activeView.editor) {
-				// Only save state if the active file is the one being modified
-				savedCursor = activeView.editor.getCursor('head');
-				savedScrollInfo = activeView.editor.getScrollInfo();
-			}
-			
-			// Process the front matter changes
+			// This function has been simplified. It no longer saves or restores
+			// the cursor and scroll position. That responsibility is correctly
+			// handled by the main `executePublish` function in `main.ts`.
+			// This prevents the UI state conflicts that were causing the bug.
+
 			this.app.fileManager.processFrontMatter(file, (fm) => {
 				for (const propertyKey in config) {
 					if (!config.hasOwnProperty(propertyKey)) {
@@ -153,10 +148,6 @@ export default class ObsidianAdaptor implements LoaderAdaptor {
 					}
 				}
 			});
-			
-			// The problematic setTimeout block has been completely removed.
-			// The focus and cursor restoration is now handled correctly by the main.ts file
-			// after the publish modal is closed. This prevents the "focus battle" bug.
 		}
 	}
 }
